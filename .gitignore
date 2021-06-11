@@ -1,3 +1,6 @@
 .idea/
 venv/
 *.csv
+.cache
+__pycache__/
+*.db
