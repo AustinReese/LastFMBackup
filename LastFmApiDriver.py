@@ -4,6 +4,7 @@ import requests
 from json import loads
 from Track import Track
 from urllib.parse import quote
+from time import sleep
 
 class LastFmApiDriver:
     def __init__(self, api_key, api_secret):
@@ -22,17 +23,28 @@ class LastFmApiDriver:
         print("Downloading recently played tracks...")
         while total_pages >= page_count:
             recent_tracks_response = requests.get(f"{self.base_url}method=user.getrecenttracks&user={user}&api_key={self.api_key}&format=json&limit={page_limit}&page={page_count}")
-            recent_tracks_dict = loads(recent_tracks_response.text)["recenttracks"]
+            recent_tracks_response_dict = loads(recent_tracks_response.text)
+            while "error" in recent_tracks_response_dict:
+                print(f"{recent_tracks_response_dict['message']} Pausing execution for 3 seconds and retrying.")
+                sleep(3)
+                recent_tracks_response = requests.get(
+                    f"{self.base_url}method=user.getrecenttracks&user={user}&api_key={self.api_key}&format=json&limit={page_limit}&page={page_count}")
+                recent_tracks_response_dict = loads(recent_tracks_response.text)
+
+            recent_tracks_dict = recent_tracks_response_dict["recenttracks"]
+
             total_pages = int(recent_tracks_dict["@attr"]["totalPages"])
             recent_track_data = recent_tracks_dict["track"]
             info_urls = [f"{self.base_url}method=track.getInfo&api_key={self.api_key}&track={quote(i['name'])}&artist={quote(i['artist']['#text'])}&format=json" for i in recent_track_data]
             info_results = grequests.map(grequests.get(u) for u in info_urls if u not in previously_parsed_info_urls)
-            info_results = info_results + [previously_parsed_info_urls[u] for u in info_urls if u in previously_parsed_info_urls]
-            assert len(info_urls) == len(info_results)
+            #info_results = info_results + [previously_parsed_info_urls[u] for u in info_urls if u in previously_parsed_info_urls]
+            #assert len(info_urls) == len(info_results)
             assert len(info_urls) == len(recent_track_data)
             for i in range(len(info_urls)):
                 if info_urls[i] not in previously_parsed_info_urls:
                     previously_parsed_info_urls[info_urls[i]] = info_results[i]
+                else:
+                    info_results.insert(i, previously_parsed_info_urls[info_urls[i]])
                 track_info_dict = loads(info_results[i].text)
 
                 if "track" not in track_info_dict:
