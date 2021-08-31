@@ -22,8 +22,11 @@ class LastFmApiDriver:
         previously_parsed_info_urls = {}
         print("Downloading recently played tracks...")
         while total_pages >= page_count:
+            #Fetch and parse tracks
             recent_tracks_response = requests.get(f"{self.base_url}method=user.getrecenttracks&user={user}&api_key={self.api_key}&format=json&limit={page_limit}&page={page_count}")
             recent_tracks_response_dict = loads(recent_tracks_response.text)
+
+            #Pause application while requests are getting refused
             while "error" in recent_tracks_response_dict:
                 print(f"{recent_tracks_response_dict['message']} Pausing execution for 3 seconds and retrying.")
                 sleep(3)
@@ -32,21 +35,28 @@ class LastFmApiDriver:
                 recent_tracks_response_dict = loads(recent_tracks_response.text)
 
             recent_tracks_dict = recent_tracks_response_dict["recenttracks"]
-
             total_pages = int(recent_tracks_dict["@attr"]["totalPages"])
             recent_track_data = recent_tracks_dict["track"]
+
+            #Build a list of URLs to request asynchronously
             info_urls = [f"{self.base_url}method=track.getInfo&api_key={self.api_key}&track={quote(i['name'])}&artist={quote(i['artist']['#text'])}&format=json" for i in recent_track_data]
             info_results = grequests.map(grequests.get(u) for u in info_urls if u not in previously_parsed_info_urls)
-            #info_results = info_results + [previously_parsed_info_urls[u] for u in info_urls if u in previously_parsed_info_urls]
-            #assert len(info_urls) == len(info_results)
             assert len(info_urls) == len(recent_track_data)
+
             for i in range(len(info_urls)):
+                #Skip songs that are currently playing to avoid key errors
+                if "@attr" in recent_track_data[i] and recent_track_data[i]["@attr"]["nowplaying"] == 'true':
+                    continue
+
+                #Retrieve tracks that have already been requested to minimize the number of requests made
                 if info_urls[i] not in previously_parsed_info_urls:
                     previously_parsed_info_urls[info_urls[i]] = info_results[i]
+                #Save new tracks
                 else:
                     info_results.insert(i, previously_parsed_info_urls[info_urls[i]])
                 track_info_dict = loads(info_results[i].text)
 
+                #Handle tracks with missing information
                 if "track" not in track_info_dict:
                     track_info_dict["track"] = {}
                     track_info_dict["track"]["toptags"]= {}
@@ -54,9 +64,13 @@ class LastFmApiDriver:
                     track_info_dict["track"]["duration"] = 0
                     track_info_dict["track"]["listeners"] = 0
                     track_info_dict["track"]["playcount"] = 0
+
+                #Add all genre tags
                 tags = []
                 for tag in track_info_dict["track"]["toptags"]["tag"]:
                     tags.append(tag["name"])
+
+                #Build Track object
                 track = Track(recent_track_data[i]["name"],
                             recent_track_data[i]["mbid"],
                             recent_track_data[i]["artist"]["#text"],
@@ -69,9 +83,13 @@ class LastFmApiDriver:
                             str(tags),
                             recent_track_data[i]["date"]["uts"],
                             recent_track_data[i]["date"]["#text"])
+
+                #Save to database
                 track.save(user)
+
             print(f"{round((page_limit * page_count)/(page_limit * total_pages) * 100, 2)}%")
             page_count += 1
+
         print("Download complete")
         return tracks
 

@@ -28,6 +28,8 @@ class Track:
         self.track_mbid = track_mbid
         self.artist_name = artist_name
         self.artist_mbid = artist_mbid
+        if '-' in album_name and any(bad_str in album_name.lower() for bad_str in bad_title_strings):
+            album_name = "-".join(album_name.split('-')[:-1]).strip()
         self.album_name = album_name
         self.album_mbid = album_mbid
         self.duration = int(duration) / 1000
