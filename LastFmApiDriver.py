@@ -43,6 +43,8 @@ class LastFmApiDriver:
             info_results = grequests.map(grequests.get(u) for u in info_urls if u not in previously_parsed_info_urls)
             assert len(info_urls) == len(recent_track_data)
 
+            previously_parsed_info_urls_to_add ={}
+
             for i in range(len(info_urls)):
                 #Skip songs that are currently playing to avoid key errors
                 if "@attr" in recent_track_data[i] and recent_track_data[i]["@attr"]["nowplaying"] == 'true':
@@ -50,10 +52,11 @@ class LastFmApiDriver:
 
                 #Retrieve tracks that have already been requested to minimize the number of requests made
                 if info_urls[i] not in previously_parsed_info_urls:
-                    previously_parsed_info_urls[info_urls[i]] = info_results[i]
+                    previously_parsed_info_urls_to_add[info_urls[i]] = info_results[i]
                 #Save new tracks
                 else:
                     info_results.insert(i, previously_parsed_info_urls[info_urls[i]])
+
                 track_info_dict = loads(info_results[i].text)
 
                 #Handle tracks with missing information
@@ -86,6 +89,9 @@ class LastFmApiDriver:
 
                 #Save to database
                 track.save(user)
+
+            assert len(info_urls) == len(info_results)
+            previously_parsed_info_urls = {**previously_parsed_info_urls, **previously_parsed_info_urls_to_add}
 
             print(f"{round((page_limit * page_count)/(page_limit * total_pages) * 100, 2)}%")
             page_count += 1
