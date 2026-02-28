@@ -16,7 +16,7 @@ pip install -r requirements.txt
 
 Obtain an API key and secret from [LastFM](https://www.last.fm/api/account/create)
 
-Set necessary environment variables
+Set necessary environment variables (or set in .env)
 
 ```bash
 export LASTFM_API_KEY="<your_lastfm_api_key>"
@@ -31,9 +31,6 @@ python3 Main.py
 ```
 
 Data is stored in main.db, located in the directory the project was run
-
-## <a name="contributing"></a> Contributing
-I began this project with the goal of a creating a website that would have customizable visualizations of your LastFM data, but I do not have enough time to write that at the moment. There are lots of potential implementations of this data and I encourage anybody with compelling ideas to create pull requests. All I ask for are descriptive comments as to what you've changed/added and why.
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)

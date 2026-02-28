@@ -40,7 +40,8 @@ class LastFmApiDriver:
 
             #Build a list of URLs to request asynchronously
             info_urls = [f"{self.base_url}method=track.getInfo&api_key={self.api_key}&track={quote(i['name'])}&artist={quote(i['artist']['#text'])}&format=json" for i in recent_track_data]
-            info_results = grequests.map(grequests.get(u) for u in info_urls if u not in previously_parsed_info_urls)
+            new_requests = [grequests.get(u) for u in info_urls if u not in previously_parsed_info_urls]
+            info_results = grequests.map(new_requests)
             assert len(info_urls) == len(recent_track_data)
 
             previously_parsed_info_urls_to_add ={}
@@ -57,7 +58,11 @@ class LastFmApiDriver:
                 else:
                     info_results.insert(i, previously_parsed_info_urls[info_urls[i]])
 
-                track_info_dict = loads(info_results[i].text)
+                #Handle failed requests (grequests returns None on error)
+                if info_results[i] is None:
+                    track_info_dict = {}
+                else:
+                    track_info_dict = loads(info_results[i].text)
 
                 #Handle tracks with missing information
                 if "track" not in track_info_dict:

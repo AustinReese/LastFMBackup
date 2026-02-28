@@ -1,5 +1,8 @@
 from os import environ
+from dotenv import load_dotenv
 from LastFmApiDriver import LastFmApiDriver
+
+load_dotenv(override=True)
 
 API_KEY = environ["LASTFM_API_KEY"]
 API_SECRET = environ["LASTFM_SHARED_SECRET"]
